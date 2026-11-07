@@ -1,0 +1,2 @@
+-- Ce fichier est remplace par garrysmod/addons/sam-153/lua/sam/modules/skilltree.lua
+-- Les commandes SAM sont enregistrees directement via le systeme de modules SAM.

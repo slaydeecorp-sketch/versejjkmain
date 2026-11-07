@@ -1,0 +1,169 @@
+local paint = paint
+local batch = {}
+
+batch.batching = false
+
+local batchTable = {
+	[0] = 0
+}
+
+function batch.reset()
+	batchTable = {
+		[0] = 0
+	}
+
+	batch.batchTable = batchTable
+end
+
+function batch.startBatching()
+	batch.batching = true
+	batch.reset()
+end
+
+local function getVariables(tab, i)
+	return tab[i], tab[i + 1], tab[i + 2], tab[i + 3], tab[i + 4], tab[i + 5], tab[i + 6], tab[i + 7], tab[i + 8], tab[i + 9]
+end
+
+do
+	local meshBegin = mesh.Begin
+	local meshEnd = mesh.End
+	local meshPosition = mesh.Position
+	local meshColor = mesh.Color
+	local meshAdvanceVertex = mesh.AdvanceVertex
+
+	local meshConstructor = Mesh
+	local PRIMITIVE_TRIANGLES = MATERIAL_TRIANGLES
+
+	function batch.stopBatching()
+		local tab = batch.batchTable
+
+		local iMesh = meshConstructor()
+
+		meshBegin(iMesh, PRIMITIVE_TRIANGLES, tab[0] * 0.3)
+		local res, reason = pcall(function()
+			for i = 1, tab[0], 10 do
+				local x, y, z, color, x1, y1, color1, x2, y2, color2 = getVariables(tab, i)
+
+				meshPosition(x, y, z)
+				meshColor(color.r, color.g, color.b, color.a)
+				meshAdvanceVertex()
+
+				meshPosition(x1, y1, z)
+				meshColor(color1.r, color1.g, color1.b, color1.a)
+				meshAdvanceVertex()
+
+				meshPosition(x2, y2, z)
+				meshColor(color2.r, color2.g, color2.b, color2.a)
+				meshAdvanceVertex()
+			end
+		end)
+		meshEnd()
+
+		if not res then
+			print('[paint] batching error', reason)
+		end
+
+		batch.reset()
+		batch.batching = false
+
+		return iMesh
+	end
+end
+
+do
+	local startPanel, endPanel = paint.startPanel, paint.endPanel
+	local meshDraw = FindMetaTable('IMesh').Draw
+	local meshDestroy = FindMetaTable('IMesh').Destroy
+	local resetZ = paint.resetZ
+
+	local whiteMat = Material('vgui/white')
+	local setMaterial = render.SetMaterial
+
+	local startBatching = batch.startBatching
+	local stopBatching = batch.stopBatching
+
+	local panelPaint = function(self, x, y)
+		local iMesh = self.iMesh
+		if not iMesh then return end
+
+		do
+			local beforePaint = self.BeforePaint
+			if beforePaint then
+				beforePaint(self, x, y)
+			end
+		end
+
+		local disableBoundaries = self.DisableBoundaries
+
+		setMaterial(whiteMat)
+
+		startPanel(self, true, disableBoundaries ~= true)
+			meshDraw(iMesh)
+		endPanel(true, disableBoundaries ~= true)
+
+		do
+			local afterPaint = self.AfterPaint
+			if afterPaint then
+				afterPaint(self, x, y)
+			end
+		end
+	end
+
+	local panelRebuildMesh = function(self, x, y)
+		resetZ()
+			local iMesh = self.iMesh
+			if iMesh then
+				meshDestroy(iMesh)
+			end
+
+			local drawFunc = self.PaintMesh
+
+			if drawFunc then
+				startBatching()
+					drawFunc(self, x, y)
+				self.iMesh = stopBatching()
+			end
+		resetZ()
+	end
+
+	local panelOnSizeChanged = function(self, x, y)
+		local rebuildMesh = self.RebuildMesh
+
+		if rebuildMesh then
+			rebuildMesh(self, x, y)
+		end
+
+		local oldOnSizeChanged = self.OldOnSizeChanged
+
+		if oldOnSizeChanged then
+			oldOnSizeChanged(self, x, y)
+		end
+	end
+
+	function batch.wrapPanel(panel)
+		panel.Paint = panelPaint
+		panel.OldOnSizeChanged = panel.OnSizeChanged
+		panel.OnSizeChanged = panelOnSizeChanged
+		panel.RebuildMesh = panelRebuildMesh
+	end
+end
+
+do
+	function batch.addTriangle(z, x1, y1, color1, x2, y2, color2, x3, y3, color3)
+		local len = batchTable[0]
+		batchTable[len + 1] = x1
+		batchTable[len + 2] = y1
+		batchTable[len + 3] = z
+		batchTable[len + 4] = color1
+		batchTable[len + 5] = x2
+		batchTable[len + 6] = y2
+		batchTable[len + 7] = color2
+		batchTable[len + 8] = x3
+		batchTable[len + 9] = y3
+		batchTable[len + 10] = color3
+		batchTable[0] = len + 10
+	end
+end
+
+batch.batchTable = batchTable
+_G.paint.batch = batch

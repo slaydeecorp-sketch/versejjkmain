@@ -1,0 +1,3 @@
+-- L'argent est désormais géré par le module Wallet (verse_wallet table).
+-- L'item "money" n'est plus enregistré dans l'inventaire.
+-- Ref: modules/wallet/sv_wallet.lua

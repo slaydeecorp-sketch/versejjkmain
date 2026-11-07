@@ -1,0 +1,14 @@
+"mangarp"
+{
+    "base" "sandbox"
+    "title" "MangaRP"
+    "version" "1.0.0"
+    "category" "rp"
+    "menusystem" "1"
+    "author_name" "king_of_the_squirt"
+    "author_email" ""
+    "author_url" ""
+    "icon" ""
+    "info" ""
+    "hide" "0"
+}
